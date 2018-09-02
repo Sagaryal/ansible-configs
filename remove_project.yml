@@ -1,0 +1,54 @@
+---
+- name: Remove the project and its dependencies
+  hosts: webservers
+  vars:
+    DEST_PROJECT_DIR: /home/techkunja/www/TestProject
+    DEST_VIRTUALENV_DIR: /home/techkunja/www/envs/test_env
+    DOMAIN: customeverything.tk
+    DATABASE_NAME: testdb
+    DATABASE_OWNER: testdb
+
+  become: true
+  become_user: root
+  tasks:
+    - name: Remove Project
+      file:
+        state: absent
+        path: "{{ DEST_PROJECT_DIR }}"
+      
+    - name: Remove its VirtualEnv
+      file:
+        state: absent
+        path: "{{ DEST_VIRTUALENV_DIR }}"
+    
+    - name: Delete Postgres Database
+      become: true
+      become_user: postgres
+      postgresql_db:
+        name: "{{ DATABASE_NAME }}"
+        state: absent
+    
+    - name: Delete Postgres User
+      become: true
+      become_user: postgres
+      postgresql_user:
+        name: "{{ DATABASE_OWNER }}"
+        password: asdf1234
+        state: absent
+
+    - name: Disable the site - {{ DOMAIN }}
+      command: a2dissite {{ DOMAIN }}.conf
+      args:
+        removes: /etc/apache2/sites-enabled/{{ DOMAIN }}.conf
+      notify:
+        - restart apache2
+
+    - name: Remove VirtualHost File
+      file:
+        state: absent
+        path: /etc/apache2/sites-available/{{ DOMAIN }}.conf
+
+  handlers:
+    - name: restart apache2
+      service: name=apache2 state=restarted
+

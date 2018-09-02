@@ -1,0 +1,130 @@
+---
+- name: Deploy Django Project along with Postgres Database
+  hosts: webservers
+  vars: 
+    GIT_REPO: git@github.com:Sagaryalioe/TestProject.git
+    GIT_VERSION: master
+    DEST_PROJECT_DIR: /home/techkunja/www/TestProject
+    PROJECT_NAME: TestProject
+    DEST_VIRTUALENV_DIR: /home/techkunja/www/envs/test_env
+    VIRTUALENV_PATH: ~/.local/bin/virtualenv
+    EMAIL: sth@gmail.com
+    HTTP_PORT: 80
+    DOMAIN: customeverything.tk
+    DATABASE_NAME: testdb
+    DATABASE_OWNER: testdb
+    # ansible_python_interpreter: "{{ DEST_VIRTUALENV_DIR}}/bin/python3"    
+    
+
+  # become: true     # <-- Always pass -K option i.e ansible -K sth.yml
+  # become_user: root
+  tasks:
+    - name: install packages
+      apt: name={{ item }} update_cache=yes state=latest
+      become: true
+      become_user: root
+      with_items:
+        - apache2
+        - git
+        - python3-virtualenv
+        - python3
+        - python3-psycopg2 
+        - python-psycopg2
+        - python3-pip
+        - python-pip
+        - python-minimal
+
+    - name: Install pip3 packages
+      become: true
+      become_user: root
+      pip:
+        name: "{{ item }}"
+        executable: /usr/bin/pip3
+      with_items: 
+        - django==1.11.7
+        - virtualenv
+        
+    - name: 'Import git project'
+      git:
+        repo: "{{ GIT_REPO }}"
+        dest: "{{ DEST_PROJECT_DIR }}"
+        version: "{{ GIT_VERSION }}"
+
+    # - name: 'Create a logs directory'
+    #   file:
+    #     path: "{{ DEST_PROJECT_DIR }}/logs"
+    #     state: directory
+
+    - name: Install requirements.txt in a virtualenv
+      pip:
+        requirements: "{{ DEST_PROJECT_DIR }}/requirements.txt"
+        virtualenv: "{{ DEST_VIRTUALENV_DIR }}"
+        virtualenv_command: "{{ VIRTUALENV_PATH }}"
+    
+    - name: Create Postgres Database
+      become: true
+      become_user: postgres
+      postgresql_db:
+        name: "{{ DATABASE_NAME }}"
+        state: present
+    
+    - name: Create Postgres User
+      become: true
+      become_user: postgres
+      postgresql_user:
+        db: "{{ DATABASE_NAME }}"
+        name: "{{ DATABASE_OWNER }}"
+        password: asdf1234
+
+    - name: Django Makemigrations
+      # ansible_python_interpreter: "{{ DEST_VIRTUALENV_DIR}}/bin/python3"
+      django_manage:
+        command: makemigrations
+        app_path: "{{ DEST_PROJECT_DIR }}"
+        virtualenv: "{{ DEST_VIRTUALENV_DIR }}"
+
+    - name: Django Migrate
+      # ansible_python_interpreter: "{{ DEST_VIRTUALENV_DIR}}/bin/python3"    
+      django_manage:
+        command: migrate
+        app_path: "{{ DEST_PROJECT_DIR }}"
+        virtualenv: "{{ DEST_VIRTUALENV_DIR }}"    
+
+    # - name: Django CreateSuperUser
+    #   django_manage:
+    #     command: 
+    #     app_path: "{{ DEST_PROJECT_DIR }}"
+    #     virtualenv: "{{ DEST_VIRTUALENV_DIR }}"  
+
+    - name: Django Collectstatic
+      django_manage:
+        command: collectstatic
+        app_path: "{{ DEST_PROJECT_DIR }}"   
+        virtualenv: "{{ DEST_VIRTUALENV_DIR }}"                 
+
+    - name: Create a VirtualHost file
+      become: true
+      become_user: root
+      template: 
+        src: virtualhost.conf
+        dest: /etc/apache2/sites-available/{{ DOMAIN }}.conf
+
+    - name: Enable the site - {{ DOMAIN }}
+      command: a2ensite {{ DOMAIN }}.conf
+      become: true
+      become_user: root
+      args:
+        creates: /etc/apache2/sites-enabled/{{ DOMAIN }}.conf
+      notify:
+        - restart apache2
+
+  handlers:
+    - name: restart apache2
+      become: true
+      become_user: root
+      # service: 
+      #   name: apache2
+      #   state: restarted
+      command: service apache2 restart
+
+    
