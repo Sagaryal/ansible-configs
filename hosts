@@ -5,7 +5,7 @@
 [bhetincha]
 #159.65.150.212 ansible_user=bhetincha
 #202.51.75.111 ansible_user=ubuntu
-13.250.104.102 ansible_user=ubuntu
+bhetincha.app ansible_user=ubuntu
 #54.254.193.124 ansible_user=ubuntu
 
 [bhansa]

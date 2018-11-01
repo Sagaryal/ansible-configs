@@ -1,0 +1,33 @@
+---
+- name: Deploy NauloV2 ReactJS App on Live Server
+  hosts: webservers
+  vars: 
+    SRC: /home/sagar/projects/naulov2/naulo-digital-restaurant-v2
+    FILE: build.zip
+    FOLDER: build
+    DEST: /home/techkunja/www/naulov2/naulo-frontend
+
+  tasks:
+    - name: Make Build Files - `npm run build` Locally  
+      local_action: command chdir={{ SRC }} npm run build
+
+    - name: Compress the Build Files (ZIP) Locally
+      local_action: archive
+        path="{{ SRC }}/{{ FOLDER }}/*"
+        dest="{{ SRC }}/{{ FOLDER }}/{{ FILE }}" 
+        format=zip
+
+    ## Unarchive copys the zip file to server default before extracting
+    ## so need for below task
+
+    # - name: Copy Build.zip to Server
+    #   synchronize:
+    #     src: "{{ SRC }}/{{ FOLDER }}/{{ FILE }}"
+    #     dest: "{{ DEST }}"
+
+    - name: Uncompress the archive (zip) file in remote server
+      unarchive:
+        src: "{{ SRC }}/{{ FOLDER }}/{{ FILE }}"
+        dest: "{{ DEST }}"
+
+    
