@@ -2,10 +2,10 @@
 - name: Deploy Bhetincha ReactJS App on Live Server
   hosts: bhetincha
   vars: 
-    SRC: /home/sagaryal/sagar/projects/bhetincha
+    SRC: /home/sagaryal/sagar/projects/qjobsfrontend
     FILE: build.zip
     FOLDER: build
-    DEST: /home/ubuntu/www/bhetincha-frontend
+    DEST: /home/techkunja/www/qjobs-frontend
 
   tasks:
     - name: Make Build Files - `npm run build` Locally  
